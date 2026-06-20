@@ -36,7 +36,7 @@ body, body[data-theme="day"] {
   --shadow:    0 4px 18px rgba(20,60,90,.08);
 }
 
-/* ---- COMFORT (NIGHT) THEME ---- */
+/* ---- COMFORT THEME ---- */
 body[data-theme="comfort"] {
   --bg:        #000000;
   --surface:   #141414;
@@ -56,6 +56,29 @@ body[data-theme="comfort"] {
   --danger-bd: rgba(224,128,112,.3);
   --hl:        rgba(184,144,112,.06);
   --hl2:       rgba(184,144,112,.16);
+  --shadow:    0 6px 24px rgba(0,0,0,.6);
+}
+
+/* ---- NIGHT THEME (terminal-dark, from reference) ---- */
+body[data-theme="night"] {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #21262d;
+  --border:    #30363d;
+  --text:      #c9d1d9;
+  --dim:       #8b949e;
+  --strong:    #e6edf3;
+  --accent:    #3fb950;
+  --accent2:   #2ea043;
+  --mark:      #d29922;
+  --info:      #58a6ff;
+  --info-bg:   rgba(88,166,255,.1);
+  --info-bd:   rgba(88,166,255,.3);
+  --danger:    #f85149;
+  --danger-bg: rgba(248,81,73,.08);
+  --danger-bd: rgba(248,81,73,.3);
+  --hl:        rgba(63,185,80,.08);
+  --hl2:       rgba(63,185,80,.18);
   --shadow:    0 6px 24px rgba(0,0,0,.6);
 }
 
@@ -419,6 +442,10 @@ body[data-theme="day"] #inline-toast.err { color: var(--danger); }
 body[data-theme="comfort"] #inline-toast { color: var(--info); } /* Blue */
 body[data-theme="comfort"] #inline-toast.err { color: var(--danger); }
 
+/* Night Theme Colors */
+body[data-theme="night"] #inline-toast { color: var(--accent); } /* Green */
+body[data-theme="night"] #inline-toast.err { color: var(--danger); }
+
 /* ── GLASSMORPHISM (20-20-20 Reminder) ── */
 .glass-overlay {
   background: rgba(10, 16, 28, 0.25);
@@ -443,6 +470,15 @@ body[data-theme="comfort"] .glass-modal {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
+
+/* Night Theme Glass */
+body[data-theme="night"] .glass-modal {
+  background: rgba(13, 17, 23, 0.90); /* Matches --bg #0d1117 */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
 </style>
 </head>
 <body data-theme="day">
@@ -453,7 +489,7 @@ body[data-theme="comfort"] .glass-modal {
   <div class="hdr-right">
     <div class="hdr-status" id="hdr-status">No file loaded</div>
     <button class="btn btn-ghost" id="changeFileBtn" onclick="changeFile()" title="Load a different file" style="display:none;">↩ Change File</button>
-    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle day/comfort mode">☀️</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle day/comfort/night mode">☀️</button>
   </div>
 </div>
 
@@ -634,11 +670,18 @@ let activeScreen = null; // 'marks' | 'category'
 /* ──────────────────────────────────────────
    THEME
 ─────────────────────────────────────────── */
+const THEME_ORDER = ['day', 'comfort', 'night'];
+const THEME_ICON   = { day: '☀️', comfort: '🌙', night: '🌑' };
+
+function applyTheme(theme) {
+  document.body.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').textContent = THEME_ICON[theme] || '☀️';
+}
+
 function toggleTheme() {
-  const body = document.body;
-  const next = body.getAttribute('data-theme') === 'comfort' ? 'day' : 'comfort';
-  body.setAttribute('data-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'comfort' ? '🌙' : '☀️';
+  const current = document.body.getAttribute('data-theme') || 'day';
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length];
+  applyTheme(next);
 
   // Save the user's preference to their browser
   localStorage.setItem('marksAppTheme', next);
@@ -646,9 +689,8 @@ function toggleTheme() {
 
 // Check for saved theme when the app loads
 const savedTheme = localStorage.getItem('marksAppTheme');
-if (savedTheme === 'comfort') {
-  document.body.setAttribute('data-theme', 'comfort');
-  document.getElementById('themeBtn').textContent = '🌙';
+if (savedTheme && THEME_ORDER.includes(savedTheme)) {
+  applyTheme(savedTheme);
 }
 
 /* ──────────────────────────────────────────
