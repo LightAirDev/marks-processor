@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marks Processor</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --font: 'Fira Code', monospace;
+}
+
+/* ---- DAY THEME (default) ---- */
+body, body[data-theme="day"] {
+  --bg:        #eaf2fb;
+  --surface:   #f5fafd;
+  --surface2:  #eef7fd;
+  --border:    #cfe2f4;
+  --text:      #163f29;
+  --dim:       #6f9381;
+  --strong:    #000000;
+  --accent:    #1f8a52;
+  --accent2:   #167a44;
+  --mark:      #c2730f;
+  --info:      #2f6fb5;
+  --info-bg:   rgba(47,111,181,.08);
+  --info-bd:   rgba(47,111,181,.3);
+  --danger:    #c0392b;
+  --danger-bg: rgba(192,57,43,.08);
+  --danger-bd: rgba(192,57,43,.3);
+  --hl:        rgba(31,138,82,.05);
+  --hl2:       rgba(31,138,82,.14);
+  --shadow:    0 4px 18px rgba(20,60,90,.08);
+}
+
+/* ---- COMFORT (NIGHT) THEME ---- */
+body[data-theme="comfort"] {
+  --bg:        #000000;
+  --surface:   #141414;
+  --surface2:  #1c1c1c;
+  --border:    #333333;
+  --text:      #B89070;
+  --dim:       #8a7560;
+  --strong:    #d4a878;
+  --accent:    #d4a878;
+  --accent2:   #c79468;
+  --mark:      #e6c19a;
+  --info:      #8fb8d9;
+  --info-bg:   rgba(143,184,217,.1);
+  --info-bd:   rgba(143,184,217,.3);
+  --danger:    #e08070;
+  --danger-bg: rgba(224,128,112,.1);
+  --danger-bd: rgba(224,128,112,.3);
+  --hl:        rgba(184,144,112,.06);
+  --hl2:       rgba(184,144,112,.16);
+  --shadow:    0 6px 24px rgba(0,0,0,.6);
+}
+
+html,body { height:100%; }
+body {
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  transition:background .25s ease, color .25s ease;
+}
+
+/* ── HEADER ─────────────────────────────────────────── */
+.hdr {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:11px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+  gap:12px;
+}
+.hdr-title { font-size:14px; font-weight:700; color:var(--accent); letter-spacing:.5px; cursor:pointer; transition:opacity .15s; }
+.hdr-title:hover { opacity:.75; }
+.hdr-title::before { content:'◆ '; font-size:9px; }
+.hdr-right { display:flex; align-items:center; gap:14px; }
+.hdr-status { font-size:12px; color:var(--strong); font-weight:600; }
+
+.icon-btn {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  color:var(--text);
+  width:32px; height:32px;
+  border-radius:7px;
+  font-size:15px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+  flex-shrink:0;
+}
+.icon-btn:hover { border-color:var(--accent); background:var(--hl2); }
+
+/* ── SETUP SCREEN ────────────────────────────────────── */
+#setup {
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.setup-grid {
+  display:flex;
+  gap:24px;
+  flex-wrap:wrap;
+  justify-content:center;
+  max-width:880px;
+}
+.upload-box {
+  background:var(--surface);
+  border:2px dashed var(--border);
+  border-radius:10px;
+  padding:44px 36px;
+  text-align:center;
+  max-width:400px;
+  width:100%;
+  flex:1;
+  min-width:280px;
+  transition:border-color .2s, background .2s;
+  cursor:pointer;
+}
+.upload-box:hover, .upload-box.drag {
+  border-color:var(--accent);
+  background:var(--hl);
+}
+.upload-ico { font-size:40px; margin-bottom:14px; }
+.upload-h { font-size:15px; font-weight:600; margin-bottom:8px; }
+.upload-sub { font-size:13px; color:var(--dim); line-height:1.7; margin-bottom:24px; }
+.up-btn {
+  background:var(--accent2); color:#fff; border:none;
+  padding:9px 26px; border-radius:6px;
+  font-family:var(--font); font-size:12px; font-weight:600;
+  cursor:pointer; transition:background .15s;
+}
+.up-btn:hover { background:var(--accent); }
+.file-in { display:none; }
+
+/* ── MAIN PANELS ─────────────────────────────────────── */
+.panel {
+  flex:1;
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+}
+.panel.visible { display:flex; }
+
+/* Toolbar (marks input only) */
+.toolbar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:9px 20px;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.tbar-info { font-size:13px; color:var(--dim); margin-right:auto; }
+.tbar-info b { color:var(--text); }
+
+.btn {
+  font-family:var(--font); font-size:11px; font-weight:600;
+  padding:6px 13px; border-radius:5px;
+  border:1px solid var(--border);
+  cursor:pointer; transition:all .15s;
+  white-space:nowrap;
+}
+.btn-ghost { background:transparent; color:var(--dim); }
+.btn-ghost:hover { background:var(--surface2); color:var(--text); }
+.btn-primary { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+body[data-theme="comfort"] #start-btn,
+body[data-theme="comfort"] #downloadAllBtn { color:#14532d; }
+.btn-primary:hover { background:var(--accent); border-color:var(--accent); }
+.btn-danger { background:transparent; color:var(--danger); border-color:var(--danger-bd); }
+.btn-danger:hover { background:var(--danger-bg); }
+.btn-info { background:var(--info-bg); color:var(--info); border-color:var(--info-bd); }
+.btn-info:hover { background:var(--hl2); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Input Panel */
+.inp-panel {
+  background:var(--surface2);
+  border-bottom:2px solid var(--accent2);
+  padding:13px 20px;
+  display:none;
+  align-items:center;
+  gap:18px;
+  flex-shrink:0;
+  flex-wrap:wrap;
+}
+.inp-panel.on { display:flex; }
+.inp-lbl { font-size:11px; color:var(--dim); white-space:nowrap; }
+.inp-lbl b { color:var(--mark); font-size:12px; }
+.inp-wrap { display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap; }
+#main-inp {
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  color:var(--accent);
+  font-family:var(--font);
+  font-size:22px; font-weight:700;
+  padding:7px 14px;
+  border-radius:5px; outline:none;
+  width:190px; letter-spacing:5px;
+  caret-color:var(--accent);
+  transition:border-color .2s, box-shadow .2s;
+}
+#main-inp:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--hl2); }
+.inp-hint { font-size:13px; color:var(--dim); }
+.inp-hint kbd {
+  background:var(--surface); border:1px solid var(--border);
+  padding:2px 6px; border-radius:3px;
+  font-family:var(--font); font-size:11px;
+}
+
+/* Table */
+.tbl-wrap { flex:1; overflow-y:auto; overflow-x:auto; }
+.tbl-wrap::-webkit-scrollbar { width:6px; }
+.tbl-wrap::-webkit-scrollbar-track { background:var(--bg); }
+.tbl-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+table { width:100%; border-collapse:collapse; }
+thead { position:sticky; top:0; z-index:10; }
+thead th {
+  background:var(--surface2);
+  padding:9px 16px;
+  text-align:left; font-size:10px; font-weight:700;
+  color:var(--dim); text-transform:uppercase; letter-spacing:1.2px;
+  border-bottom:1px solid var(--border);
+}
+thead th:nth-child(1) { width:20px; }
+thead th:nth-child(2) { width:60px; }
+thead th:nth-child(3) { width:450px; }
+thead th:nth-child(4) { width:44px; }
+
+tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
+tbody tr:hover { background:var(--hl); }
+tbody tr.active-row { background:var(--hl2) !important; }
+tbody tr.active-row .id-cell { color:var(--accent) !important; }
+tbody tr.active-row .row-num { color:var(--accent); }
+tbody tr.new-row .id-cell, tbody tr.new-row .mark-cell { color:var(--danger) !important; }
+
+td { padding:9px 16px; font-size:12px; vertical-align:middle; }
+.row-num { color:var(--dim); font-size:10px; }
+.id-cell { color:var(--text); cursor:default; font-size:14px; font-weight:600; }
+.mark-cell { color:var(--mark); font-weight:700; font-size:14px; }
+.mark-cell.empty { color:var(--dim); font-weight:400; font-size:12px; }
+.dbl-edit { cursor:pointer; }
+.dbl-edit:hover { text-decoration:underline dotted; }
+.action-td { text-align:right; padding-right:12px; }
+
+.del-btn {
+  background:none; border:none; color:var(--dim);
+  cursor:pointer; font-size:12px;
+  padding:2px 6px; border-radius:3px;
+  opacity:0; transition:opacity .15s, color .15s;
+}
+tbody tr:hover .del-btn { opacity:1; }
+.del-btn:hover { color:var(--danger); }
+
+.cell-inp {
+  background:var(--surface);
+  font-family:var(--font); font-size:14px; font-weight:600;
+  padding:3px 8px; border-radius:4px;
+  outline:none; width:150px;
+  color:var(--text);
+}
+.cell-inp-id { border:1.5px solid var(--info); color:var(--info); }
+.cell-inp-mark { border:1.5px solid var(--mark); color:var(--mark); width:100px; }
+
+.no-data { text-align:center; padding:50px; color:var(--dim); font-size:12px; }
+
+/* ── CATEGORY EXPORT ─────────────────────────────────── */
+.cat-wrap {
+  flex:1;
+  overflow-y:auto;
+  padding:20px 22px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.cat-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px 20px;
+  margin-bottom:20px;
+  max-width:920px;
+  width:100%;
+}
+.cat-card:last-child { margin-bottom:0; }
+.cat-card h3 { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:8px; letter-spacing:.5px; text-transform:uppercase; }
+
+.cat-card-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+.cat-card-head h3 { margin-bottom:0; }
+
+.meta-grid {
+  display:grid;
+  grid-template-columns:repeat(6, minmax(0,1fr));
+  gap:8px;
+  font-size:13px;
+}
+.meta-grid.counts-grid { grid-template-columns:repeat(4, minmax(0,1fr)); }
+.meta-grid + .meta-grid { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.meta-grid div span {
+  display:block;
+  color:var(--dim);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  margin-bottom:2px;
+}
+.meta-grid div b { font-size:14px; font-weight:600; color:var(--text); display:block; }
+.status-line { font-size:12px; color:var(--dim); margin-top:8px; line-height:1.5; }
+.status-line b { color:var(--text); }
+.status-line.empty { display:none; }
+
+.file-list { display:flex; flex-direction:column; gap:6px; margin-bottom:0; }
+.file-row {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 14px;
+}
+.file-icon { font-size:17px; width:24px; text-align:center; flex-shrink:0; }
+.file-label {
+  font-size:13px; font-weight:700; color:var(--accent);
+  text-transform:uppercase; letter-spacing:.06em;
+  flex-shrink:0; width:115px; white-space:nowrap;
+}
+.file-name { font-size:13px; color:var(--strong); flex:1; word-break:break-all; }
+.cat-card .btn { font-size:13px; padding:6px 16px; }
+
+/* ── MODAL (no blur) ─────────────────────────────────── */
+.overlay {
+  position:fixed; inset:0;
+  background:rgba(10,16,28,.45);
+  display:none; align-items:center; justify-content:center;
+  z-index:200;
+}
+.overlay.on { display:flex; }
+.modal {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:26px 28px;
+  max-width:480px; /* Reduced width */
+  width:100%;
+  box-shadow:var(--shadow);
+}
+.m-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; white-space:normal; line-height:1.3; }
+.m-sub { font-size:13px; color:var(--dim); margin-bottom:20px; line-height:1.6; }
+.m-opts { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.m-opt {
+  background:var(--surface2); border:1px solid var(--border);
+  color:var(--text); padding:11px 16px;
+  border-radius:6px; text-align:left; cursor:pointer;
+  font-family:var(--font); font-size:12px;
+  transition:all .15s;
+}
+.m-opt:hover { background:var(--hl2); border-color:var(--accent); color:var(--accent); }
+.m-opt-mark { color:var(--mark); margin-left:10px; font-size:10px; }
+.m-row { display:flex; gap:8px; margin-bottom:10px; }
+.m-inp {
+  background:var(--bg); border:1.5px solid var(--border);
+  color:var(--text); font-family:var(--font); font-size:13px;
+  padding:8px 12px; border-radius:5px; flex:1; outline:none;
+  transition:border-color .2s;
+}
+.m-inp:focus { border-color:var(--accent); }
+.m-ok {
+  background:var(--accent2); border:none; color:#fff;
+  padding:8px 18px; border-radius:5px;
+  font-family:var(--font); font-size:12px; font-weight:600;
+  cursor:pointer; transition:background .15s; white-space:nowrap;
+}
+.m-ok:hover { background:var(--accent); }
+.m-err { font-size:13px; color:var(--danger); margin-top:4px; min-height:16px; }
+.m-cancel { font-size:13px; color:var(--dim); cursor:pointer; text-align:center; margin-top:6px; }
+.m-cancel:hover { color:var(--text); }
+
+/* ── INLINE TOAST ── */
+#inline-toast {
+  flex: 1; /* Pushes the buttons to the right and centers the text */
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#inline-toast.on { opacity: 1; }
+
+/* Day Theme Colors */
+body[data-theme="day"] #inline-toast { color: var(--accent); } /* Green */
+body[data-theme="day"] #inline-toast.err { color: var(--danger); }
+
+/* Comfort Theme Colors */
+body[data-theme="comfort"] #inline-toast { color: var(--info); } /* Blue */
+body[data-theme="comfort"] #inline-toast.err { color: var(--danger); }
+
+/* ── GLASSMORPHISM (20-20-20 Reminder) ── */
+.glass-overlay {
+  background: rgba(10, 16, 28, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); /* For Safari support */
+}
+
+/* Day Theme Glass */
+body[data-theme="day"] .glass-modal {
+  background: rgba(255, 255, 255, 0.90); /* Increased opacity to 90% for readability */
+  border: 1px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 8px 32px 0 rgba(20, 60, 90, 0.15);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Comfort (Night) Theme Glass */
+body[data-theme="comfort"] .glass-modal {
+  background: rgba(20, 20, 20, 0.90); /* Increased opacity to 90% for readability */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+</style>
+</head>
+<body data-theme="day">
+
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <div class="hdr-title" onclick="goHome()" title="Back to start screen">Marks Processor</div>
+  <div class="hdr-right">
+    <div class="hdr-status" id="hdr-status">No file loaded</div>
+    <button class="btn btn-ghost" id="changeFileBtn" onclick="changeFile()" title="Load a different file" style="display:none;">↩ Change File</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle day/comfort mode">☀️</button>
+  </div>
+</div>
+
+<!-- ── SETUP ── -->
+<div id="setup">
+  <div class="setup-grid">
+
+    <div class="upload-box" id="dropZoneMarks" onclick="document.getElementById('file-in-marks').click()">
+      <div class="upload-ico">✏️</div>
+      <div class="upload-h">Marks Input</div>
+      <div class="upload-sub">
+        Drag &amp; drop your Excel file here, or click to browse.<br>
+        The Student ID column is detected automatically — then enter
+        marks one by one using the last 3 digits of each ID.
+      </div>
+      <button class="up-btn" onclick="event.stopPropagation(); document.getElementById('file-in-marks').click()">Choose File</button>
+      <input class="file-in" type="file" id="file-in-marks" accept=".xlsx,.xls" onclick="event.stopPropagation()" onchange="handleFile(event,'marks')">
+    </div>
+
+    <div class="upload-box" id="dropZoneCat" onclick="document.getElementById('file-in-cat').click()">
+      <div class="upload-ico">🗂️</div>
+      <div class="upload-h">Category-wise File Generator</div>
+      <div class="upload-sub">
+        Drag &amp; drop your Excel file here, or click to browse.<br>
+        Splits Attendance, Assignment, Mid Term and Final marks into
+        four separate downloadable files.
+      </div>
+      <button class="up-btn" onclick="event.stopPropagation(); document.getElementById('file-in-cat').click()">Choose File</button>
+      <input class="file-in" type="file" id="file-in-cat" accept=".xlsx,.xls" onclick="event.stopPropagation()" onchange="handleFile(event,'category')">
+    </div>
+
+  </div>
+</div>
+
+<!-- ── MARKS INPUT PANEL ── -->
+<div id="panelMarks" class="panel">
+
+  <div class="toolbar">
+    <span class="tbar-info">
+      <b id="cnt-total">0</b> students &nbsp;·&nbsp;
+      <b id="cnt-marked">0</b> marks entered &nbsp;·&nbsp;
+      <b id="cnt-pending">0</b> pending
+    </span>
+    
+    <span id="inline-toast"></span>
+
+    <button class="btn btn-info" onclick="copyColumn('id')" title="Copy ID column">📋 Copy IDs</button>
+    <button class="btn btn-info" onclick="copyColumn('mark')" title="Copy Mark column">📋 Copy Marks</button>
+    <button class="btn btn-primary" id="start-btn" onclick="startInput()">▶ Input Marks</button>
+    <button class="btn btn-danger" id="finish-btn" onclick="stopInput()" style="display:none">■ Finish</button>
+    <button class="btn btn-info" onclick="exportExcel()">⬇ Export Excel</button>
+  </div>
+
+  <!-- Input Panel -->
+  <div class="inp-panel" id="inp-panel">
+    <div class="inp-lbl" id="inp-lbl">Enter <b>last 3 digits</b> of ID:</div>
+    <div class="inp-wrap">
+      <input id="main-inp" type="text" placeholder="___" maxlength="10"
+             autocomplete="off" spellcheck="false"
+             onkeydown="onMainKey(event)">
+      <span class="inp-hint">
+        <kbd>Enter</kbd> confirm &nbsp; <kbd>Esc</kbd> back to ID
+        <span id="new-id-wrap" style="display:none; margin-left:12px; padding-left:12px; border-left:1px solid var(--border);">
+          <button type="button" 
+                  onclick="triggerNewId()" 
+                  style="background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:var(--font); font-size:12px; font-weight:600; padding:4px 10px; border-radius:4px; cursor:pointer; transition:all 0.15s; outline:none;"
+                  onmouseover="this.style.borderColor='var(--accent)'; this.style.color='var(--accent)'; this.style.background='var(--hl2)';" 
+                  onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text)'; this.style.background='var(--surface)';">
+            + New ID
+          </button>
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student ID</th>
+          <th>Mark</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── CATEGORY EXPORT PANEL ── -->
+<div id="panelCat" class="panel">
+  <div class="cat-wrap">
+    <div class="cat-card">
+      <h3>Sheet Info</h3>
+      <div class="meta-grid">
+        <div><span>Course Code</span><b id="metaCode">-</b></div>
+        <div><span>Title</span><b id="metaTitle">-</b></div>
+        <div><span>Section</span><b id="metaSection">-</b></div>
+        <div><span>Semester</span><b id="metaSemester">-</b></div>
+        <div><span>Teacher</span><b id="metaTeacher">-</b></div>
+        <div><span>Students</span><b id="metaCount">-</b></div>
+      </div>
+      <div class="meta-grid counts-grid">
+        <div><span>Attendance entries</span><b id="cntAtt">-</b></div>
+        <div><span>Assignment entries</span><b id="cntAssign">-</b></div>
+        <div><span>Mid Term entries</span><b id="cntMid">-</b></div>
+        <div><span>Final entries</span><b id="cntFinal">-</b></div>
+      </div>
+      <div class="status-line" id="catStatus"></div>
+    </div>
+
+    <div class="cat-card">
+      <div class="cat-card-head">
+        <h3>Generated Files</h3>
+        <button class="btn btn-primary" id="downloadAllBtn" onclick="downloadAllFiles()">⬇ Download All</button>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: duplicate IDs ── -->
+<div class="overlay" id="ovl-dup">
+  <div class="modal">
+    <div class="m-title">Multiple IDs Found</div>
+    <div class="m-sub" id="dup-sub"></div>
+    <div class="m-opts" id="dup-opts"></div>
+    <div class="m-cancel" onclick="cancelModal()">Cancel</div>
+  </div>
+</div>
+
+<!-- ── MODAL: new ID ── -->
+<div class="overlay" id="ovl-new">
+  <div class="modal">
+    <div class="m-title">ID Not Found</div>
+    <div class="m-sub" id="new-sub"></div>
+    <div id="new-suggs" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:15px; max-height:140px; overflow-y:auto; padding-right:4px;"></div>
+    <div class="m-row">
+      <input class="m-inp" id="new-id-inp" type="text"
+             placeholder="e.g. 162310025" maxlength="30"
+             autocomplete="off"
+             onkeydown="onNewIdKey(event)">
+      <button class="m-ok" onclick="confirmNewId()">Add &amp; Continue</button>
+    </div>
+    <div class="m-err" id="new-err"></div>
+    <div class="m-cancel" onclick="cancelModal()">Cancel</div>
+  </div>
+</div>
+<!-- ── M20 minute eye strain modal ── -->
+<div class="overlay glass-overlay" id="ovl-break">
+  <div class="modal glass-modal">
+    <div class="m-title" style="font-size: 18px; margin-bottom: 12px;">🌿 Time for a Quick Break!</div>
+    <div class="m-sub" style="font-size: 14px; margin-bottom: 24px; color: var(--text);">
+      You are continuously working at the screen for 20 minutes.<br><br>
+      <strong>Look 20 feet away for 20 seconds, then work again.</strong>
+    </div>
+    <div style="text-align: center;">
+      <button class="m-ok" onclick="closeBreakModal()" style="padding: 10px 30px; font-size: 14px;">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ──────────────────────────────────────────
+   STATE
+─────────────────────────────────────────── */
+let students     = [];   // [{id:string, mark:string|null, isNew:bool}]
+let categoryData = null; // {meta, rows, cols}
+let categoryFiles = [];  // [{label, icon, fileName, wb}]
+let mode         = 'idle';  // 'idle' | 'id' | 'mark'
+let curIdx       = null;
+let isInputting  = false;
+let toastTimer   = null;
+let activeScreen = null; // 'marks' | 'category'
+
+/* ──────────────────────────────────────────
+   THEME
+─────────────────────────────────────────── */
+function toggleTheme() {
+  const body = document.body;
+  const next = body.getAttribute('data-theme') === 'comfort' ? 'day' : 'comfort';
+  body.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'comfort' ? '🌙' : '☀️';
+
+  // Save the user's preference to their browser
+  localStorage.setItem('marksAppTheme', next);
+}
+
+// Check for saved theme when the app loads
+const savedTheme = localStorage.getItem('marksAppTheme');
+if (savedTheme === 'comfort') {
+  document.body.setAttribute('data-theme', 'comfort');
+  document.getElementById('themeBtn').textContent = '🌙';
+}
+
+/* ──────────────────────────────────────────
+   FILE LOADING
+─────────────────────────────────────────── */
+function setupDropZone(zoneId, screenType) {
+  const zone = document.getElementById(zoneId);
+  ['dragenter','dragover'].forEach(ev =>
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); })
+  );
+  ['dragleave','drop'].forEach(ev =>
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); })
+  );
+  zone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file, screenType);
+  });
+}
+setupDropZone('dropZoneMarks', 'marks');
+setupDropZone('dropZoneCat', 'category');
+
+function handleFile(e, screenType) {
+  const file = e.target.files[0];
+  if (file) readFile(file, screenType);
+}
+
+function readFile(file, screenType) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb   = XLSX.read(data, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const aoa  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      processWorkbook(aoa, file.name, screenType);
+    } catch (err) {
+      toast('Error reading file: ' + err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function goHome() {
+  if (isInputting) stopInput();
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('panelMarks').classList.remove('visible');
+  document.getElementById('panelCat').classList.remove('visible');
+  document.getElementById('file-in-marks').value = '';
+  document.getElementById('file-in-cat').value = '';
+  document.getElementById('hdr-status').textContent = 'No file loaded';
+  document.getElementById('changeFileBtn').style.display = 'none';
+  students = [];
+  categoryData = null;
+  categoryFiles = [];
+  activeScreen = null;
+}
+
+function changeFile() {
+  if (activeScreen === 'marks') {
+    document.getElementById('file-in-marks').click();
+  } else if (activeScreen === 'category') {
+    document.getElementById('file-in-cat').click();
+  }
+}
+
+/* ──────────────────────────────────────────
+   PARSE WORKBOOK
+─────────────────────────────────────────── */
+function findHeaderRow(aoa) {
+  for (let r = 0; r < Math.min(aoa.length, 25); r++) {
+    const row = aoa[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = String(row[c] || '').trim().toLowerCase();
+      if (cell === 'student id' || cell === 'student no' || (cell.includes('student') && cell.includes('id'))) {
+        return { headerRow: r, idCol: c, headerCells: row };
+      }
+    }
+  }
+  return null;
+}
+
+function findColByPattern(headerCells, regex) {
+  for (let c = 0; c < headerCells.length; c++) {
+    if (regex.test(String(headerCells[c] || '').trim())) return c;
+  }
+  return -1;
+}
+
+function findMeta(aoa) {
+  const meta = { code: '', title: '', section: '', semester: '', teacher: '' };
+  for (let r = 0; r < Math.min(aoa.length, 15); r++) {
+    const row = aoa[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = String(row[c] || '').trim().toLowerCase();
+      const nextVal = () => {
+        for (let i = c + 1; i < row.length; i++) {
+          if (row[i] !== undefined && String(row[i]).trim() !== '') return String(row[i]).trim();
+        }
+        return '';
+      };
+      if (cell.includes('course code')) meta.code = nextVal();
+      else if (cell.includes('course title')) meta.title = nextVal();
+      else if (cell.includes('section')) meta.section = nextVal();
+      else if (cell.includes('semester')) meta.semester = nextVal();
+      else if (cell.includes('teacher')) meta.teacher = nextVal();
+    }
+  }
+  return meta;
+}
+
+function isFilled(val) {
+  return val !== undefined && val !== null && String(val).trim() !== '';
+}
+
+function processWorkbook(aoa, fileName, screenType) {
+  const headerInfo = findHeaderRow(aoa);
+  if (!headerInfo) {
+    toast('Could not find a "Student ID" column in this file.', true);
+    return;
+  }
+
+  /* Fresh start: clear any previous data/flow state before loading the new file */
+  isInputting = false; mode = 'idle'; curIdx = null;
+  document.getElementById('inp-panel').classList.remove('on');
+  document.getElementById('start-btn').style.display  = '';
+  document.getElementById('finish-btn').style.display = 'none';
+  categoryFiles = [];
+
+  /* Marks input data */
+  students = [];
+  for (let r = headerInfo.headerRow + 1; r < aoa.length; r++) {
+    const row = aoa[r] || [];
+    const idVal = row[headerInfo.idCol];
+    if (!isFilled(idVal)) break;
+    students.push({ id: String(idVal).trim(), mark: null, isNew: false });
+  }
+
+  if (students.length === 0) {
+    toast('No student IDs found below the header row.', true);
+    return;
+  }
+
+  /* Category data */
+  const headerCells = headerInfo.headerCells;
+  const attCol    = findColByPattern(headerCells, /attend/i);
+  const assignCol = findColByPattern(headerCells, /assign|cont.*assess/i);
+  const midCol    = findColByPattern(headerCells, /mid/i);
+  const finalCol  = findColByPattern(headerCells, /final/i);
+
+  const rows = [];
+  for (let r = headerInfo.headerRow + 1; r < aoa.length; r++) {
+    const row = aoa[r] || [];
+    const idVal = row[headerInfo.idCol];
+    if (!isFilled(idVal)) break;
+    rows.push({
+      id: String(idVal).trim(),
+      attendance: attCol    >= 0 ? row[attCol]    : '',
+      assignment: assignCol >= 0 ? row[assignCol] : '',
+      mid:        midCol    >= 0 ? row[midCol]    : '',
+      final:      finalCol  >= 0 ? row[finalCol]  : ''
+    });
+  }
+  const meta = findMeta(aoa);
+  categoryData = { meta, rows, cols: { attCol, assignCol, midCol, finalCol } };
+
+  document.getElementById('hdr-status').innerHTML = `📄 ${esc(fileName)}`;
+  document.getElementById('changeFileBtn').style.display = '';
+  document.getElementById('setup').style.display = 'none';
+  activeScreen = screenType;
+
+  if (screenType === 'marks') {
+    document.getElementById('panelMarks').classList.add('visible');
+    document.getElementById('panelCat').classList.remove('visible');
+    render(); stats();
+  } else {
+    document.getElementById('panelCat').classList.add('visible');
+    document.getElementById('panelMarks').classList.remove('visible');
+    renderCategoryInfo();
+    buildCategoryFiles();
+    renderFileList();
+  }
+
+  toast(`Loaded ${students.length} students from "${fileName}"`);
+  document.getElementById('file-in-marks').value = '';
+  document.getElementById('file-in-cat').value = '';
+}
+
+/* ──────────────────────────────────────────
+   MARKS INPUT: RENDER & STATS
+─────────────────────────────────────────── */
+function render() {
+  const tb = document.getElementById('tbody');
+  if (!students.length) {
+    tb.innerHTML = '<tr><td colspan="4" class="no-data">No students loaded.</td></tr>';
+    return;
+  }
+  tb.innerHTML = students.map((s, i) => {
+    const active   = i === curIdx ? 'active-row' : '';
+    const newCls   = s.isNew ? 'new-row' : '';
+    const hasMark  = s.mark !== null && s.mark !== '';
+    const markDisp = hasMark ? esc(String(s.mark)) : '—';
+    const markCls  = 'mark-cell' + (hasMark ? '' : ' empty');
+    return `<tr id="r${i}" class="${active} ${newCls}">
+      <td class="row-num">${i+1}</td>
+      <td class="id-cell dbl-edit" ondblclick="editId(${i})" title="Double-click to edit ID">${esc(s.id)}</td>
+      <td class="${markCls} dbl-edit" ondblclick="editMark(${i})" title="Double-click to edit mark">${markDisp}</td>
+      <td class="action-td"><button class="del-btn" onclick="delRow(${i})" title="Delete row">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function stats() {
+  const marked = students.filter(s => s.mark !== null && s.mark !== '').length;
+  document.getElementById('cnt-total').textContent   = students.length;
+  document.getElementById('cnt-marked').textContent  = marked;
+  document.getElementById('cnt-pending').textContent = students.length - marked;
+}
+
+function scrollTo(idx) {
+  const r = document.getElementById('r' + idx);
+  if (r) r.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* ──────────────────────────────────────────
+   MARKS INPUT: INPUT FLOW
+─────────────────────────────────────────── */
+function startInput() {
+  isInputting = true; mode = 'id'; curIdx = null;
+  document.getElementById('inp-panel').classList.add('on');
+  document.getElementById('start-btn').style.display  = 'none';
+  document.getElementById('finish-btn').style.display = '';
+  setLbl('id');
+  render();
+  focusInp();
+}
+
+function stopInput() {
+  isInputting = false; mode = 'idle'; curIdx = null;
+  document.getElementById('inp-panel').classList.remove('on');
+  document.getElementById('start-btn').style.display  = '';
+  document.getElementById('finish-btn').style.display = 'none';
+  document.getElementById('main-inp').value = '';
+  render();
+}
+
+function setLbl(m, id) {
+  const lbl = document.getElementById('inp-lbl');
+  const inp = document.getElementById('main-inp');
+  const newWrap = document.getElementById('new-id-wrap');
+  
+  if (m === 'id') {
+    lbl.innerHTML = 'Enter <b>last 3 digits</b> of ID:';
+    inp.maxLength = 10; inp.style.letterSpacing = '5px';
+    inp.placeholder = '___';
+    if (newWrap) newWrap.style.display = 'none';
+  } else {
+    lbl.innerHTML = `Mark for <b>${esc(id)}</b>:`;
+    inp.maxLength = 20; inp.style.letterSpacing = '2px';
+    inp.placeholder = 'mark';
+    if (newWrap) {
+      newWrap.style.display = 'inline-block';
+    }
+  }
+}
+
+function focusInp() {
+  const inp = document.getElementById('main-inp');
+  inp.value = ''; inp.focus();
+}
+
+function onMainKey(e) {
+  if (e.key === 'Enter') {
+    const val = document.getElementById('main-inp').value.trim();
+    if (!val) return;
+    if (mode === 'id') processId(val);
+    else if (mode === 'mark') processMark(val);
+  } else if (e.key === 'Escape' && mode === 'mark') {
+    mode = 'id'; curIdx = null;
+    setLbl('id'); render(); focusInp();
+  }
+}
+
+function processId(last) {
+  const matches = students
+    .map((s, i) => ({s, i}))
+    .filter(({s}) => String(s.id).endsWith(last));
+
+  if (matches.length === 0) {
+    openNewId(last);
+  } else if (matches.length === 1) {
+    selectStudent(matches[0].i);
+  } else {
+    openDup(matches);
+  }
+}
+
+function selectStudent(idx) {
+  curIdx = idx; mode = 'mark';
+  setLbl('mark', students[idx].id);
+  render(); scrollTo(idx); focusInp();
+}
+
+function processMark(val) {
+  if (curIdx === null) return;
+  students[curIdx].mark = val;
+  render(); stats();
+  toast(`Saved: ${students[curIdx].id} → ${val}`);
+  curIdx = null; mode = 'id';
+  setLbl('id'); focusInp();
+}
+
+/* ──────────────────────────────────────────
+   MODALS
+─────────────────────────────────────────── */
+function openDup(matches) {
+  document.getElementById('dup-sub').textContent =
+    `${matches.length} students share these last digits. Select the correct one:`;
+  document.getElementById('dup-opts').innerHTML = matches.map(({s, i}) =>
+    `<button class="m-opt" style="font-size:14px; font-weight:500; padding:12px 16px; display:flex; justify-content:flex-start; align-items:center; gap:20px;" onclick="pickDup(${i})">
+      <span>${esc(s.id)}</span>
+      ${s.mark !== null && s.mark !== ''
+        ? `<span class="m-opt-mark" style="font-size:13px; font-weight:500; color:var(--mark); margin-left:0;">(mark: ${esc(String(s.mark))})</span>` 
+        : ''}
+    </button>`
+  ).join('');
+  document.getElementById('ovl-dup').classList.add('on');
+}
+
+function pickDup(idx) {
+  document.getElementById('ovl-dup').classList.remove('on');
+  selectStudent(idx);
+}
+
+function openNewId(last, isManualNew = false) {
+  const titleEl = document.querySelector('#ovl-new .m-title');
+  if (isManualNew) {
+    titleEl.textContent = 'Enter New ID';
+    document.getElementById('new-sub').textContent = 'Select a suggested ID or enter the full ID manually below:';
+  } else {
+    titleEl.textContent = 'ID Not Found';
+    document.getElementById('new-sub').textContent = `No student ID ends with "${last}". Enter the full ID or select a suggestion:`;
+  }
+  
+  // Helper to generate the buttons with reduced padding
+  const makeBtn = (prefix) => {
+    const fullId = `${prefix}${last}`;
+    return `<button class="m-opt" style="padding:6px 2px; font-size:13px; font-weight:600; text-align:center;" onclick="pickSuggestedId('${fullId}')">${fullId}</button>`;
+  };
+
+  // Group 1: 1623, 1624, 1625, 1626
+  let group1Html = '';
+  [23, 24, 25, 26].forEach(y => {
+    group1Html += makeBtn(`16${y}10`);
+    group1Html += makeBtn(`16${y}20`);
+  });
+
+  // Group 2: 1627, 1628, 1629
+  let group2Html = '';
+  [27, 28, 29].forEach(y => {
+    group2Html += makeBtn(`16${y}10`);
+    group2Html += makeBtn(`16${y}20`);
+  });
+
+  // Flex container with two separate grids to create the required gap
+  let suggsHtml = `
+    <div style="display:flex; gap:16px; margin-bottom:14px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; flex:1;">
+        ${group1Html}
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; flex:1; align-content:start;">
+        ${group2Html}
+      </div>
+    </div>
+  `;
+
+  const suggsContainer = document.getElementById('new-suggs');
+  suggsContainer.style.maxHeight = 'none';
+  suggsContainer.style.display = 'block';
+  suggsContainer.innerHTML = suggsHtml;
+
+  const inp = document.getElementById('new-id-inp');
+  inp.value = '';
+  document.getElementById('new-err').textContent = '';
+  document.getElementById('ovl-new').classList.add('on');
+  setTimeout(() => inp.focus(), 60);
+}
+
+// Handles when a user clicks an auto-generated suggestion
+function pickSuggestedId(id) {
+  const inp = document.getElementById('new-id-inp');
+  inp.value = id;
+  confirmNewId(); // Auto-submits and continues to mark entry
+}
+
+// Handles entering an new ID while in "Mark" entry mode
+function triggerNewId() {
+  let last3 = '';
+  if (curIdx !== null && students[curIdx]) {
+    last3 = students[curIdx].id.slice(-3); // Get last 3 digits of current student
+  }
+  openNewId(last3, true); 
+}
+
+function onNewIdKey(e) {
+  if (e.key === 'Enter') confirmNewId();
+  if (e.key === 'Escape') cancelModal();
+}
+
+function confirmNewId() {
+  const inp = document.getElementById('new-id-inp');
+  const val = inp.value.trim();
+  const errEl = document.getElementById('new-err');
+  if (!val) { errEl.textContent = 'Please enter a full ID.'; return; }
+  
+  const existingIdx = students.findIndex(s => s.id === val);
+  document.getElementById('ovl-new').classList.remove('on');
+
+  if (existingIdx !== -1) {
+    // ID already exists, just switch to it
+    toast(`Switched to existing ID: ${val}`);
+    selectStudent(existingIdx);
+  } else {
+    // It's a brand new ID
+    students.push({ id: val, mark: null, isNew: true });
+    render(); stats();
+    toast(`New student added: ${val}`);
+    selectStudent(students.length - 1);
+  }
+}
+
+function cancelModal() {
+  document.getElementById('ovl-dup').classList.remove('on');
+  document.getElementById('ovl-new').classList.remove('on');
+  if (isInputting) { mode = 'id'; setLbl('id'); focusInp(); }
+}
+
+['ovl-dup','ovl-new'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) cancelModal();
+  });
+});
+
+/* ──────────────────────────────────────────
+   INLINE EDITING & DELETE
+─────────────────────────────────────────── */
+function editId(idx) {
+  if (isInputting) return;
+  const row = document.getElementById('r' + idx);
+  const cell = row.cells[1];
+  const old = students[idx].id;
+  cell.innerHTML = `<input class="cell-inp cell-inp-id"
+    value="${esc(old)}" maxlength="30"
+    onblur="saveId(this,${idx})"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+  const inp = cell.querySelector('input');
+  inp.focus(); inp.select();
+}
+
+function saveId(inp, idx) {
+  if (inp.dataset.cancel === '1') { render(); return; }
+  const val = inp.value.trim();
+  if (val && val !== students[idx].id) {
+    if (students.some((s,i) => i !== idx && s.id === val)) {
+      toast('That ID already exists!', true);
+    } else {
+      students[idx].id = val;
+      toast(`ID updated → ${val}`);
+    }
+  }
+  render(); stats();
+}
+
+function editMark(idx) {
+  if (isInputting && idx !== curIdx) return;
+  const row = document.getElementById('r' + idx);
+  const cell = row.cells[2];
+  const old = students[idx].mark ?? '';
+  cell.innerHTML = `<input class="cell-inp cell-inp-mark"
+    value="${esc(String(old))}" maxlength="20"
+    onblur="saveMark(this,${idx})"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+  const inp = cell.querySelector('input');
+  inp.focus(); inp.select();
+}
+
+function saveMark(inp, idx) {
+  if (inp.dataset.cancel !== '1') {
+    students[idx].mark = inp.value.trim() || null;
+  }
+  render(); stats();
+}
+
+function delRow(idx) {
+  if (!confirm(`Delete student "${students[idx].id}"?`)) return;
+  students.splice(idx, 1);
+  if (curIdx !== null) {
+    if (curIdx === idx) {
+      curIdx = null;
+      if (isInputting) { mode = 'id'; setLbl('id'); focusInp(); }
+    } else if (curIdx > idx) curIdx--;
+  }
+  render(); stats();
+}
+
+/* ──────────────────────────────────────────
+   EXPORT & COPY (MARKS INPUT)
+─────────────────────────────────────────── */
+function toNumberIfPossible(val) {
+  const str = String(val ?? '').trim();
+  if (str === '') return '';
+  if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+  return str;
+}
+
+function sanitizeFilename(name) {
+  return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function buildBaseName(meta) {
+  const parts = [meta.code, meta.title, meta.section, meta.semester].filter(p => p && p.trim() !== '');
+  return sanitizeFilename(parts.join(' ')) || 'Marks';
+}
+
+function exportExcel() {
+  if (!students.length) { toast('Nothing to export yet!', true); return; }
+  const data = [['StudentID', 'Mark'], ...students.map(s => [toNumberIfPossible(s.id), toNumberIfPossible(s.mark)])];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:16},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+  const meta = categoryData ? categoryData.meta : { code:'', title:'', section:'', semester:'' };
+  const fname = `${buildBaseName(meta)}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast(`Exported as ${fname}`);
+}
+
+function copyColumn(field) {
+  if (!students.length) { toast('Nothing to copy yet!', true); return; }
+  const text = students.map(s => {
+    const v = toNumberIfPossible(field === 'id' ? s.id : (s.mark ?? ''));
+    return v === '' ? '' : String(v);
+  }).join('\n');
+
+  const done = () => toast(field === 'id' ? 'Student IDs copied!' : 'Marks copied!');
+
+  navigator.clipboard.writeText(text).then(done).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    done();
+  });
+}
+
+/* ──────────────────────────────────────────
+   CATEGORY EXPORT
+─────────────────────────────────────────── */
+function renderCategoryInfo() {
+  if (!categoryData) return;
+  const { meta, rows, cols } = categoryData;
+  document.getElementById('metaCode').textContent     = meta.code || '-';
+  document.getElementById('metaTitle').textContent    = meta.title || '-';
+  document.getElementById('metaSection').textContent  = meta.section || '-';
+  document.getElementById('metaSemester').textContent = meta.semester || '-';
+  document.getElementById('metaTeacher').textContent  = meta.teacher || '-';
+  document.getElementById('metaCount').textContent    = rows.length;
+
+  document.getElementById('cntAtt').textContent    = rows.filter(r => isFilled(r.attendance)).length;
+  document.getElementById('cntAssign').textContent = rows.filter(r => isFilled(r.assignment)).length;
+  document.getElementById('cntMid').textContent    = rows.filter(r => isFilled(r.mid)).length;
+  document.getElementById('cntFinal').textContent  = rows.filter(r => isFilled(r.final)).length;
+
+  const missing = [];
+  if (cols.attCol < 0)    missing.push('Attendance');
+  if (cols.assignCol < 0) missing.push('Assignment');
+  if (cols.midCol < 0)    missing.push('Mid Term');
+  if (cols.finalCol < 0)  missing.push('Final');
+
+  const statusEl = document.getElementById('catStatus');
+  if (missing.length) {
+    statusEl.innerHTML = `<b>Warning:</b> could not detect column(s): ${missing.join(', ')}.`;
+    statusEl.classList.remove('empty');
+  } else {
+    statusEl.innerHTML = '';
+    statusEl.classList.add('empty');
+  }
+}
+
+function buildCategoryFiles() {
+  categoryFiles = [];
+  if (!categoryData || categoryData.rows.length === 0) return;
+  const baseName = buildBaseName(categoryData.meta);
+
+  const categories = [
+    { key: 'attendance', label: 'Attendance', icon: '🗓️' },
+    { key: 'assignment', label: 'Assignment', icon: '📝' },
+    { key: 'mid',        label: 'Mid Term',   icon: '📘' },
+    { key: 'final',      label: 'Final',      icon: '📄' }
+  ];
+
+  categories.forEach(cat => {
+    const wsData = [['StudentID', 'Mark']];
+    categoryData.rows.forEach(r => {
+      wsData.push([toNumberIfPossible(r.id), toNumberIfPossible(r[cat.key])]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:16},{wch:10}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, cat.label);
+
+    categoryFiles.push({
+      label: cat.label,
+      icon: cat.icon,
+      fileName: `${baseName} - ${cat.label}.xlsx`,
+      wb
+    });
+  });
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  if (!categoryFiles.length) {
+    list.innerHTML = '<div class="no-data">No category data to export.</div>';
+    document.getElementById('downloadAllBtn').disabled = true;
+    return;
+  }
+  document.getElementById('downloadAllBtn').disabled = false;
+  list.innerHTML = categoryFiles.map((f, i) => `
+    <div class="file-row">
+      <span class="file-icon">${f.icon}</span>
+      <span class="file-label">${esc(f.label)}</span>
+      <span class="file-name">${esc(f.fileName)}</span>
+      <button class="btn btn-info" onclick="downloadFile(${i})">⬇ Download</button>
+    </div>
+  `).join('');
+}
+
+function downloadFile(i) {
+  const f = categoryFiles[i];
+  if (!f) return;
+  XLSX.writeFile(f.wb, f.fileName);
+  toast(`Downloaded ${f.fileName}`);
+}
+
+function downloadAllFiles() {
+  if (!categoryFiles.length) return;
+  categoryFiles.forEach((f, i) => {
+    setTimeout(() => XLSX.writeFile(f.wb, f.fileName), i * 400);
+  });
+  toast('Downloading all 4 files…');
+}
+
+/* ──────────────────────────────────────────
+   UTILS
+─────────────────────────────────────────── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function toast(msg, isErr) {
+  const el = document.getElementById('inline-toast'); // Targeting the new inline element
+  el.textContent = msg;
+  el.className = 'on' + (isErr ? ' err' : '');
+  
+  if (toastTimer) clearTimeout(toastTimer);
+  
+  toastTimer = setTimeout(() => { 
+    el.className = ''; 
+  }, 2800);
+}
+
+/* ──────────────────────────────────────────
+   20-20-20 REMINDER TIMER
+─────────────────────────────────────────── */
+let breakTimer;
+// 20 minutes = 20 * 60 seconds * 1000 milliseconds
+const BREAK_INTERVAL = 20*60*1000; 
+
+function startBreakTimer() {
+  clearTimeout(breakTimer);
+  breakTimer = setTimeout(showBreakModal, BREAK_INTERVAL);
+}
+
+function showBreakModal() {
+  document.getElementById('ovl-break').classList.add('on');
+}
+
+function closeBreakModal() {
+  document.getElementById('ovl-break').classList.remove('on');
+  // Restart the timer for the next 20 minutes as soon as they click OK
+  startBreakTimer(); 
+}
+
+// Start the timer as soon as the app loads
+startBreakTimer();
+
+</script>
+</body>
+</html>
