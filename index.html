@@ -221,8 +221,8 @@ body[data-theme="comfort"] #downloadAllBtn { color:#14532d; }
   flex-wrap:wrap;
 }
 .inp-panel.on { display:flex; }
-.inp-lbl { font-size:11px; color:var(--dim); white-space:nowrap; }
-.inp-lbl b { color:var(--mark); font-size:12px; }
+.inp-lbl { font-size:17px; color:var(--dim); white-space:nowrap; }
+.inp-lbl b { color:var(--mark); font-size:20px; }
 .inp-wrap { display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap; }
 #main-inp {
   background:var(--surface);
@@ -276,6 +276,8 @@ td { padding:9px 16px; font-size:12px; vertical-align:middle; }
 .id-cell { color:var(--text); cursor:default; font-size:14px; font-weight:600; }
 .mark-cell { color:var(--mark); font-weight:700; font-size:14px; }
 .mark-cell.empty { color:var(--dim); font-weight:400; font-size:12px; }
+.mark-cell.live { color:var(--accent); font-style:italic; font-weight:700; font-size:14px; }
+.mark-cell.live::after { content:'✏️'; margin-left:6px; font-size:12px; }
 .dbl-edit { cursor:pointer; }
 .dbl-edit:hover { text-decoration:underline dotted; }
 .action-td { text-align:right; padding-right:12px; }
@@ -549,7 +551,7 @@ body[data-theme="night"] .glass-modal {
     <div class="inp-wrap">
       <input id="main-inp" type="text" placeholder="___" maxlength="10"
              autocomplete="off" spellcheck="false"
-             onkeydown="onMainKey(event)">
+             onkeydown="onMainKey(event)" oninput="onMainInput(event)">
       <span class="inp-hint">
         <kbd>Enter</kbd> confirm &nbsp; <kbd>Esc</kbd> back to ID
         <span id="new-id-wrap" style="display:none; margin-left:12px; padding-left:12px; border-left:1px solid var(--border);">
@@ -892,7 +894,8 @@ function render() {
     const newCls   = s.isNew ? 'new-row' : '';
     const hasMark  = s.mark !== null && s.mark !== '';
     const markDisp = hasMark ? esc(String(s.mark)) : '—';
-    const markCls  = 'mark-cell' + (hasMark ? '' : ' empty');
+    const isLive   = isInputting && mode === 'mark' && i === curIdx;
+    const markCls  = isLive ? 'mark-cell live' : ('mark-cell' + (hasMark ? '' : ' empty'));
     return `<tr id="r${i}" class="${active} ${newCls}">
       <td class="row-num">${i+1}</td>
       <td class="id-cell dbl-edit" ondblclick="editId(${i})" title="Double-click to edit ID">${esc(s.id)}</td>
@@ -970,6 +973,26 @@ function onMainKey(e) {
   } else if (e.key === 'Escape' && mode === 'mark') {
     mode = 'id'; curIdx = null;
     setLbl('id'); render(); focusInp();
+  }
+}
+
+function onMainInput(e) {
+  // Mirror what's being typed for a mark live into the table, right beside the ID,
+  // so the user can confirm they're typing against the correct row without
+  // looking back and forth at the input field.
+  if (mode !== 'mark' || curIdx === null) return;
+  const row = document.getElementById('r' + curIdx);
+  if (!row) return;
+  const cell = row.cells[2];
+  const val = e.target.value;
+  if (val.trim() !== '') {
+    cell.textContent = val;
+    cell.className = 'mark-cell live';
+  } else {
+    const old = students[curIdx].mark;
+    const hasMark = old !== null && old !== undefined && old !== '';
+    cell.textContent = hasMark ? esc(String(old)) : '—';
+    cell.className = 'mark-cell' + (hasMark ? '' : ' empty');
   }
 }
 
