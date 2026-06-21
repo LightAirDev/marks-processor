@@ -1018,11 +1018,13 @@ function selectStudent(idx) {
 
 function processMark(val) {
   if (curIdx === null) return;
+  const savedId = students[curIdx].id;
   students[curIdx].mark = val;
-  render(); stats();
-  toast(`Saved: ${students[curIdx].id} → ${val}`);
   curIdx = null; mode = 'id';
-  setLbl('id'); focusInp();
+  setLbl('id');
+  render(); stats();
+  toast(`Saved: ${savedId} → ${val}`);
+  focusInp();
 }
 
 /* ──────────────────────────────────────────
