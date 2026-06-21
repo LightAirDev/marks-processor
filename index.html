@@ -104,9 +104,11 @@ body {
   flex-shrink:0;
   gap:12px;
 }
-.hdr-title { font-size:14px; font-weight:700; color:var(--accent); letter-spacing:.5px; cursor:pointer; transition:opacity .15s; }
-.hdr-title:hover { opacity:.75; }
+.hdr-title-wrap { display:flex; flex-direction:column; align-items:center; cursor:pointer; transition:opacity .15s; line-height:1; }
+.hdr-title-wrap:hover { opacity:.75; }
+.hdr-title { font-size:14px; font-weight:700; color:var(--accent); letter-spacing:.5px; line-height:1.2; }
 .hdr-title::before { content:'◆ '; font-size:9px; }
+.hdr-dev { font-size:10px; font-weight:600; color:var(--dim); letter-spacing:.6px; line-height:1; margin-top:2px; transition:color .25s ease; }
 .hdr-right { display:flex; align-items:center; gap:14px; }
 .hdr-status { font-size:12px; color:var(--strong); font-weight:600; }
 
@@ -487,7 +489,10 @@ body[data-theme="night"] .glass-modal {
 
 <!-- ── HEADER ── -->
 <div class="hdr">
-  <div class="hdr-title" onclick="goHome()" title="Back to start screen">Marks Processor</div>
+  <div class="hdr-title-wrap" onclick="goHome()" title="Back to start screen">
+    <div class="hdr-title">Marks Processor</div>
+    <div class="hdr-dev">--Light Air--</div>
+  </div>
   <div class="hdr-right">
     <div class="hdr-status" id="hdr-status">No file loaded</div>
     <button class="btn btn-ghost" id="changeFileBtn" onclick="changeFile()" title="Load a different file" style="display:none;">↩ Change File</button>
